@@ -72,10 +72,13 @@ def docmd(cmdlist):
 dlabelmap = 'fsaverage.Yeo2011_7Networks_N1000.32k_fs_LR.dlabel.nii'
 mapname = 'fsaverage_Yeo2011_7Networks_N1000'
 
+surface_R = 'fsaverage.R.midthickness.32k_fs_LR.surf.gii'
+surface_L = 'fsaverage.L.midthickness.32k_fs_LR.surf.gii'
+
 ## define interger map names for L and R hemisphere networks
 networks={}
-networksL = range(2,8)                                          #the keys for the left cortex networks on dlabel map
-networksR = range(networksL[0]+networksL[-1],networksL[-2]*2)   #the keys for the right cortex networks on dlabel map
+networksL = range(2,9)                                          #the keys for the left cortex networks on dlabel map
+networksR = range(networksL[0]+networksL[-1],networksL[-1]*2+1)   #the keys for the right cortex networks on dlabel map
 networkids = np.array(range(len(networksL))) + 1                        #the numeric ids of the networks -for the output file names
 
 namebase = dlabelmap.replace('.dlabel.nii','')
@@ -86,27 +89,28 @@ for id in networkids:
     ## split into 14 separate maps
     #wb_command -cifti-label-to-roi dlabelmap -key <key> <output.dscalar.nii>
     dscalarL = namebase + '.' + str(id) + 'L.dscalar.nii'
-    docmd(['wb_command', '-cifti-label-to-roi', dlabelmap, '-key', str(id), dscalarL])
+    docmd(['wb_command', '-cifti-label-to-roi', dlabelmap, '-key', str(networksL[id-1]), dscalarL])
     ## do the right one
     dscalarR = namebase + '.' + str(id) + 'R.dscalar.nii'
-    docmd(['wb_command', '-cifti-label-to-roi', dlabelmap, '-key', str(id), dscalarR])
+    docmd(['wb_command', '-cifti-label-to-roi', dlabelmap, '-key', str(networksR[id-1]), dscalarR])
     ## merge left and right
     #wb_command -cifti-math '"left || right"' <ciftiLR> -var left <ciftiL> -var right <ciftiR>
     dscalarLR = namebase + '.' + str(id) + 'LR.dscalar.nii'
-    docmd(['wb_command', '-cifti-math', '"left || right"', dscalarLR, \
+    docmd(['wb_command', '-cifti-math', '(left || right)', dscalarLR, \
         '-var', 'left', dscalarL, '-var', 'right', dscalarR])
     ## run clusterize on combined
     #wb_command -cifti-find-clusters <ciftiLR> <surface-value-threshold> <surface-minimum-area> <volume-value-threshold> <volume-minimum-size> COLUMN -left-surface <surface> -right-surface <surface> <cifti-out>
     clusterized = namebase + '.' + str(id) + 'LRroi.dscalar.nii'
     docmd(['wb_command', '-cifti-find-clusters', dscalarLR, \
     '0.5','1', '0.5', '1', 'COLUMN', \
-    '-left-surface', <surface>, '-right-surface', <surface>, \
+    '-left-surface', surface_L, '-right-surface', surface_R, \
     clusterized])
     cluster_maps.append(clusterized)
 
 ## merge the final output into one dtseries.nii
 #wb_command -cifti-merge <ciftiout> [-cifti <cifti-in>]...
-merge_cmd = ['wb_command', '-cifti-merge', '<ciftiout>']
+clusters_out = namebase + '.ROI.dscalar.nii'
+merge_cmd = ['wb_command', '-cifti-merge', clusters_out]
 for map in cluster_maps:
     merge_cmd.append('-cifti')
     merge_cmd.append(map)
