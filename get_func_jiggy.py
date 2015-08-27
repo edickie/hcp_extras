@@ -21,10 +21,11 @@ Requires HCP pipeline environment
 module load FSL/5.0.7 freesurfer/5.3.0 connectome-workbench/1.1.1 hcp-pipelines/3.7.0
 
 ROI template example:
-/projects/edickie/code/templates/fsaverage.Yeo2011_7Networksfrom17.32k_fs_LR.ROI.dscalar.nii
+ROItemplate='/projects/edickie/code/templates/fsaverage.Yeo2011_7Networksfrom17.32k_fs_LR.ROI.dscalar.nii'
+fROItemplate='/projects/edickie/code/templates/fsaverage.Yeo2011_7Networksfrom17.32k_fs_LR.ROI_dscalarfake.nii'
 
 inputfile example:
-/projects/edickie/analysis/restcifti/SN110/MNINonLinear/Results/RSN/RSN_Atlas.dtseries.nii
+inputfile= '/projects/edickie/analysis/restcifti/SN110/MNINonLinear/Results/RSN/RSN_Atlas.dtseries.nii'
 Work in progress
 """
 from docopt import docopt
@@ -32,6 +33,7 @@ import numpy as np
 import nibabel as nib
 import os
 import subprocess
+import pandas as pd
 
 arguments       = docopt(__doc__)
 inputfile       = arguments['<input.dtseries.nii>']
@@ -58,14 +60,62 @@ if os.path.exists(sub_dconn)==False:
 
 ## read in the dconn file
 img1 = nib.load(sub_dconn)
-sub_corrmat = img1.get_data(img1)
-sub_corrmat.shape()
-
+sub_corrmat = img1.get_data()
+shape(sub_corrmat)
+dconn=sub_corrmat[0,0,0,0,:,:]
+fc_df = pd.DataFrame(sub_corrmat[0,0,0,0,:,:])
 ## also read in template
 img2 = nib.load(ROItemplate)
-ROInet = img2.get_data(img2)
-ROInet.shape()
+ROInet2 = img2.get_data()
+roi_df = pd.DataFrame(ROInet2[0,0,0,0,:,:],index=range(1,shape(ROInet2)[4]+1))
 
-##take submatrix by network name
+
+cols = ['Network','ROI','cifti-index']
+result = pd.DataFrame(columns = cols)
+thisrow = 1
+for network in roi_df.index.values.tolist():
+    ### subset matrix to contain rows of only this Network
+    network_idx = roi_df.loc[network,roi_df.loc[network,:]>0].index
+    #network_mat = fc_df.loc[network_idx,network_idx]
+    ### also subset template ROI matrix to get one network
+    #net_rois = roi_df.loc[network,network_idx]
+    ### get a list of ROIs to within the network
+    roi_list = roi_df.loc[network,network_idx].unique()
+    for roi in roi_list:
+        '''
+        for each roi find its best vertex and add to table
+        '''
+        ### get the subarray that contains the ROI
+        roi_idx = roi_df.loc[network,roi_df.loc[network,:]==roi].index
+        #roi_mat = fc_df.loc[roi_idx,:]
+        ### calculate the maximal correlation at every vertex with this ROI
+        #roi_maxified = roi_mat.max()
+        max_indexes = []
+        for other_roi in roi_list[roi_list != roi]:
+            ## for combination of ROI and other_roi get the indices of the other roi that is most correlated with it
+            oroi_idx = roi_df.loc[network,roi_df.loc[network,:]==other_roi].index
+            roi_oroi_mat = fc_df.loc[roi_idx,oroi_idx]
+            row_maxes = roi_oroi_mat.max(1)
+            max_idx = int(row_maxes.loc[row_maxes==row_maxes.max()].index[0])
+            max_indexes.append(max_idx)
+        ### top picks are those ROIs are those vertices from each other ROI in the network with the highest correlation with it
+        toppicks = fc_df.loc[roi_idx,max_indexes]
+        ### caculate the median correlation from these top picks
+        toppicks_median = toppicks.median(1)
+        ### take the highest
+        toppick = toppicks_median[toppicks_median==toppicks_median.max()].index[0]
+        ### add a row to the result dataframe and fill in the cols
+        result = result.append(pd.DataFrame(columns = cols, index = [thisrow]))
+        result.Network[thisrow] = network
+        result.ROI[thisrow] = int(roi)
+        result['cifti-index'][thisrow] = toppick
+        thisrow = thisrow + 1
+
+
+
+
+
+
+
 
 ## take median of max correlation values within each ROI within each network
