@@ -14,7 +14,7 @@ Options:
   -v,--verbose             Verbose logging
   --debug                  Debug logging in Erin's very verbose style
   -n,--dry-run             Dry run
-  -h,--help                Print help 
+  -h,--help                Print help
 
 DETAILS
 Requires python enviroment with numpy and nibabel:
@@ -60,7 +60,7 @@ if os.path.exists(sub_dconn)==False:
     if the dconn file does not exists - make  it with wb_command
     # wb_command -cifti-correlation -fisher-z <cifti-in> <cifti-out>
     '''
-    docmd(['wb_command', '-cifti-correlation', '-fisher-z', inputfile, sub_dconn])
+    docmd(['wb_command', '-cifti-correlation', '-mem-limit', '1.5', '-fisher-z', inputfile, sub_dconn])
 
 ## read in the dconn file
 img1 = nib.load(sub_dconn)
