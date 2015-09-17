@@ -53,6 +53,7 @@ def docmd(cmdlist):
     if DEBUG: print ' '.join(cmdlist)
     if not DRYRUN: subprocess.call(cmdlist)
 
+
 ## use wm_commad to get the cross correlation - if not done
 # sub_dconn = inputfile.replace('.dtseries.nii','Z.dconn.nii')
 # if os.path.exists(sub_dconn)==False:
@@ -67,6 +68,16 @@ def docmd(cmdlist):
 # sub_corrmat = img1.get_data()
 # fc_df = pd.DataFrame(sub_corrmat[0,0,0,0,:,:])
 
+##may need to export the mapping to get the ROItemplate and the dtseries files to match up..
+# wb_command -cifti-export-dense-mapping fsaverage.Yeo2011_7Networksfrom17.32k_fs_LR.ROI.dscalar.nii COLUMN -surface CORTEX_LEFT fsaverage.Yeo2011_7Networksfrom17.32k_fs_LR.CORTEX_LEFTmapping.txt -surface CORTEX_RIGHT fsaverage.Yeo2011_7Networksfrom17.32k_fs_LR.CORTEX_RIGHTmapping.txt
+# edickie@franklin:~/code/templates/Yeo_JNeurophysiol11/hcp/fsaverage/MNINonLinear/fsaverage_LR32k$ head fsaverage.Yeo2011_7Networksfrom17.32k_fs_LR.CORTEX_LEFTmapping.txt
+## export dense mapping to a tmpdir
+tmpdir = os.path.join(os.path.dirname(resultsfile,'tmp'))
+docmd('mkdir','-p',tmpdir)
+
+## export the mappings for both files into the tmpdir
+
+
 ## read in the dtseries file
 img1 = nib.load(inputfile)
 inputdata = img1.get_data()
@@ -76,8 +87,6 @@ input_df = pd.DataFrame(inputdata[0,0,0,0,:,:])
 img2 = nib.load(ROItemplate)
 ROInet = img2.get_data()
 roi_df = pd.DataFrame(ROInet[0,0,0,0,:,:],index=range(1,ROInet.shape[4]+1))
-
-##may need to export the mapping to get the ROItemplate and the dtseries files to match up..
 
 cols = ['Network','ROI','cifti-index']
 result = pd.DataFrame(columns = cols)
