@@ -56,7 +56,7 @@ def docmd(cmdlist):
     if DEBUG: print ' '.join(cmdlist)
     if not DRYRUN: subprocess.call(cmdlist)
 
-fs2wb_script = '/home/edickie/code/hcp_extras/FreeSurfer2Workbench.sh'
+fs2wb_script = '/projects/edickie/code/hcp_extras/FreeSurfer2Workbench.sh'
 
 # need to find the t1 weighted scan and update the checklist
 # def doCIVETlinking(colname, archive_tag, civet_ext):
@@ -201,7 +201,7 @@ fs2wb_script = '/home/edickie/code/hcp_extras/FreeSurfer2Workbench.sh'
 ## make the civety directory if it doesn't exist
 targetpath = os.path.normpath(targetpath)
 logs_dir  = os.path.join(targetpath+'/logs/')
-dm.utils.makedirs(civet_logs)
+subprocess.call(['mkdir','-p',logs_dir])
 
 ## writes a standard CIVET running script for this project (if it doesn't exist)
 ## the script requires a $SUBJECT variable - that gets sent if by qsub (-v option)
@@ -221,7 +221,7 @@ dm.utils.makedirs(civet_logs)
 cols = ["id", "date_converted", "qc_rator", "qc_rating", "notes"]
 
 # if the checklist exists - open it, if not - create the dataframe
-checklistfile = os.path.normpath(targetpath+'/CIVETchecklist.csv')
+checklistfile = os.path.normpath(targetpath+'/checklist.csv')
 if os.path.isfile(checklistfile):
 	checklist = pd.read_csv(checklistfile, sep=',', dtype=str, comment='#')
 else:
@@ -229,9 +229,9 @@ else:
 
 
 ## find those subjects in input who have not been processed yet and append to checklist
-subjects = filter(os.path.isdir, glob.glob(os.path.join(inputpath, '*')))
-for i, subj in enumerate(subjects):
-    subjects[i] = os.path.basename(subj)
+subids_fs = filter(os.path.isdir, glob.glob(os.path.join(inputpath, '*')))
+for i, subj in enumerate(subids_fs):
+    subids_fs[i] = os.path.basename(subj)
 subids_fs = [ v for v in subids_fs if "PHA" not in v ] ## remove the phantoms from the list
 if prefix != None:
     subids_fs = [ v for v in subids_fs if prefix in v ] ## remove the phantoms from the list
@@ -254,15 +254,14 @@ checklist = checklist.append(newsubs_df)
 jobnames = []
 for i in range(0,len(checklist)):
     subid = checklist['id'][i]
-    freesurferdone = os.path.join(inputpath,subid,'scripts', subid, 'recon-all.done')
+    freesurferdone = os.path.join(inputpath,subid,'scripts','recon-all.done')
     # checks that all the input files are there
-    CIVETready = os.path.exists(freesurferdone)
+    FSready = os.path.exists(freesurferdone)
     # if all input files are there - check if an output exists
-    if CIVETready:
-        thicknessdir = os.path.join(civet_out,subid,'thickness')
+    if FSready:
+        FS32 = os.path.join(targetpath,subid,'MNINonLinear','fsaverage_LR32k',subid + '.aparc.32k_fs_LR.dlabel.nii')
         # if no output exists than run civet
-        if os.path.exists(thicknessdir)== False:
-            os.chdir(civet_bin)
+        if os.path.exists(FS32)== False:
             jobname = 'fs2wb_' + subid
             docmd(['qsub','-o', logs_dir, \
                      '-N', jobname,  \
